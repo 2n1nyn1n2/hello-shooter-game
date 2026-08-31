@@ -1,0 +1,24 @@
+[gd_scene format=3 uid="uid://dbs31llayyhv7"]
+
+[ext_resource type="Script" uid="uid://bte40uw8knp3q" path="res://gd/ui/PlayerJoystickUI.gd" id="1_phloh"]
+[ext_resource type="PackedScene" uid="uid://c8j2l5r6x4y3t" path="res://tscn/ui/Joystick.tscn" id="1_xnesq"]
+
+[node name="PlayerJoystickUI" type="CanvasLayer" unique_id=1280425691]
+script = ExtResource("1_phloh")
+
+[node name="Joysticks" type="Node2D" parent="." unique_id=1728091693]
+unique_name_in_owner = true
+
+[node name="JoystickSlide" parent="Joysticks" unique_id=1611026357 groups=["joystick_base"] instance=ExtResource("1_xnesq")]
+unique_name_in_owner = true
+offset_left = 0.0
+offset_top = 768.0
+offset_right = 256.0
+offset_bottom = 1024.0
+
+[node name="JoystickLook" parent="Joysticks" unique_id=464932893 groups=["joystick_base"] instance=ExtResource("1_xnesq")]
+unique_name_in_owner = true
+offset_left = 768.0
+offset_top = 768.0
+offset_right = 1024.0
+offset_bottom = 1024.0

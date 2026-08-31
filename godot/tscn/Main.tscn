@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://kk24cc0lgupi"]
+
+[ext_resource type="Script" uid="uid://cn6xgrj6qevx7" path="res://gd/Main.gd" id="1_gq1gk"]
+[ext_resource type="PackedScene" uid="uid://dbs31llayyhv7" path="res://tscn/ui/PlayerJoystickUI.tscn" id="2_gq1gk"]
+
+[node name="Main" type="Node3D" unique_id=2026184301]
+script = ExtResource("1_gq1gk")
+
+[node name="JoystickUI" parent="." unique_id=1280425691 groups=["joystick_ui"] instance=ExtResource("2_gq1gk")]

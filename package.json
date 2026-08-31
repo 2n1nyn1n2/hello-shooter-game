@@ -1,0 +1,13 @@
+{
+  "name": "hello-app-store",
+  "version": "1.0.0",
+  "type": "module",
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "prettier-plugin-sort-json": "^4.1.1"
+  },
+  "scripts": {
+    "format-json": "prettier --write \"**/*.{js,json}\"",
+    "format-json-check": "prettier --check \"**/*.{js,json}\""
+  }
+}

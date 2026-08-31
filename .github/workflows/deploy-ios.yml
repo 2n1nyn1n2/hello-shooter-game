@@ -1,0 +1,100 @@
+name: Deploy iOS
+
+on:
+  workflow_dispatch:
+  # push:
+    # branches:
+      # - main
+    # tags:
+      # - 'v*'
+
+jobs:
+  deploy-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 1. Download and install Godot 4.6 stable
+      - name: Download Godot Engine
+        run: |
+          curl -LO https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_macos.universal.zip
+          unzip Godot_v4.6-stable_macos.universal.zip
+          mv Godot.app /Applications/Godot.app
+          
+          # Download Export Templates
+          curl -LO https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_export_templates.tpz
+          mkdir -p ~/Library/Application\ Support/Godot/export_templates/4.6.stable
+          unzip Godot_v4.6-stable_export_templates.tpz -d /tmp
+          mv /tmp/templates/* ~/Library/Application\ Support/Godot/export_templates/4.6.stable/
+
+      # 2. Export the project to an Xcode project via Godot CLI
+      - name: Godot Headless Export to iOS
+        run: |
+          mkdir -p build/ios
+          cd godot
+          # Target a file name in the directory, Godot will generate the .xcodeproj automatically inside build/ios/
+          /Applications/Godot.app/Contents/MacOS/Godot --headless --path . --export-release "iOS" ../build/ios/hello-shooter-game
+          cd ..
+
+      # 3. Setup App Store Connect API Key for signing/uploading
+      - name: Setup App Store Connect API Key
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+
+      # 4. Build and archive using Xcode command line tools
+      - name: Build and Archive App
+        run: |
+          cd build/ios
+          xcodebuild archive \
+            -project hello-shooter-game.xcodeproj \
+            -scheme "hello-shooter-game" \
+            -archivePath hello-shooter-game.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }} \
+            DEVELOPMENT_TEAM=${{ secrets.APPLE_DEVELOPER_TEAM_ID }} \
+            PRODUCT_BUNDLE_IDENTIFIER="2n1nyn1n2.helloemailstore" \
+            CODE_SIGN_STYLE="Manual" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="AppStore"
+
+      # 5. Export the IPA from the Archive
+      # Note: Requires an exportOptions.plist in your repo or generated dynamically
+      - name: Create exportOptions.plist
+        run: |
+          cat <<EOF > build/ios/exportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>${{ secrets.APPLE_DEVELOPER_TEAM_ID }}</string>
+              <key>destination</key>
+              <string>export</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Export IPA
+        run: |
+          cd build/ios
+          xcodebuild -exportArchive \
+            -archivePath hello-shooter-game.xcarchive \
+            -exportOptionsPlist exportOptions.plist \
+            -exportPath output \
+            -allowProvisioningUpdates \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+
+      # 6. Upload final binary to Apple Store Connect / TestFlight
+      - name: Upload to App Store Connect
+        run: |
+          xcrun altool --upload-app \
+            -f build/ios/output/hello-shooter-game.ipa \
+            -t ios \
+            --apiKey ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
+            --apiIssuer ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}

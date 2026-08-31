@@ -1,0 +1,81 @@
+name: Deploy Web Pages
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Setup Node.js Environment 
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: 📥 Install npm dependencies
+        run: npm ci
+
+      - name: 🐍 Setup Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x' 
+      
+      - name: Install GDScript Formatter
+        run: pip3 install "gdtoolkit"
+
+      - name: 🧹 Run Source Formatter Script 
+        run: chmod +x ./ci/check-format-source.sh && ./ci/check-format-source.sh
+
+      # Changed download directory to 'godot_engine' to avoid project folder conflict
+      - name: Download Godot prebuilt
+        run: |
+          mkdir -p godot_engine
+          wget https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_linux.x86_64.zip
+          unzip Godot_v4.7-stable_linux.x86_64.zip -d godot_engine
+          chmod +x godot_engine/Godot_v4.7-stable_linux.x86_64
+
+      - name: Download Godot export templates
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/4.7.stable
+          wget https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_export_templates.tpz
+          unzip -j Godot_v4.7-stable_export_templates.tpz -d ~/.local/share/godot/export_templates/4.7.stable
+
+      # Navigates into your 'godot' project directory and uses the engine binary from 'godot_engine'
+      - name: Export Godot Project to Web
+        run: |
+          mkdir -p docs
+          cd godot
+          ../godot_engine/Godot_v4.7-stable_linux.x86_64 --headless --export-debug "Web" ../docs/index.html
+
+      - name: Create .nojekyll
+        run: touch ./docs/.nojekyll
+
+      - name: Debug output
+        run: ls -la ./docs
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
